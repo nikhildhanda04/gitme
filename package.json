@@ -6,9 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
+    "lint": "eslint"
   },
   "dependencies": {
     "@better-auth/prisma-adapter": "^1.6.6",
@@ -16,12 +14,16 @@
     "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "~6.4.1",
     "better-auth": "^1.6.6",
+    "clsx": "^2.1.1",
     "dotenv": "^17.4.2",
+    "framer-motion": "^12.38.0",
+    "lucide-react": "^1.8.0",
     "next": "16.2.4",
     "pg": "^8.20.0",
     "pino": "^10.3.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "tailwind-merge": "^3.5.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

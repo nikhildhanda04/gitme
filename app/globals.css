@@ -5,11 +5,15 @@
   --foreground: #171717;
 }
 
+@theme {
+  --color-primary: #238636;
+  --font-primary: var(--font-instrument-serif), serif;
+  --font-sec: var(--font-inter), sans-serif;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
