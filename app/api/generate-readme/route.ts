@@ -17,11 +17,16 @@ import { NextRequest, NextResponse } from "next/server";
     const generateSchema = z.object({
       githubUrl: z
         .string()
+        .trim()
+        .max(250, "URL is too long")
         .url("Must be a valid URL")
         .refine((url) => url.startsWith("https://github.com/"), {
           message: "Must be a valid GitHub URL (https://github.com/...)",
+        })
+        .refine((url) => !/[<>"'{}|\\^`]/.test(url), {
+          message: "URL contains invalid or potentially dangerous characters",
         }),
-    });
+    }).strict();
 
     const ipLimitMap = new Map<string, { count: number; lastReset: number }>();
     const RATE_LIMIT_MAX = 5; 
@@ -30,6 +35,8 @@ import { NextRequest, NextResponse } from "next/server";
 
     async function readOptionalFile(filePath: string, encoding: BufferEncoding = 'utf8', truncateLength?: number): Promise<string | null> {
         try {
+            const stats = await fs.lstat(filePath);
+            if (!stats.isFile()) return null;
             const content = await fs.readFile(filePath, encoding);
             return truncateLength ? content.substring(0, truncateLength) : content;
         } catch (err: unknown) {
@@ -45,15 +52,18 @@ import { NextRequest, NextResponse } from "next/server";
     async function countFilesByExtension(
       dirPath: string,
       maxDepth: number,
-      currentDepth = 0
+      currentDepth = 0,
+      state = { scanned: 0 }
     ): Promise<Record<string, number>> {
       const counts: Record<string, number> = {};
-      if (currentDepth > maxDepth) return counts;
+      if (currentDepth > maxDepth || state.scanned > 5000) return counts;
 
       try {
         const entries = await fs.readdir(dirPath, { withFileTypes: true });
 
         for (const entry of entries) {
+          state.scanned++;
+          if (state.scanned > 5000) break;
           if (entry.name === ".git" || entry.name === "node_modules" || entry.name === "dist" || entry.name === "build") {
             continue;
           }
@@ -63,7 +73,8 @@ import { NextRequest, NextResponse } from "next/server";
             const subCounts = await countFilesByExtension(
               fullPath,
               maxDepth,
-              currentDepth + 1
+              currentDepth + 1,
+              state
             );
             for (const [ext, count] of Object.entries(subCounts)) {
               counts[ext] = (counts[ext] || 0) + count;
@@ -88,9 +99,10 @@ import { NextRequest, NextResponse } from "next/server";
       dirPath: string,
       maxDepth: number,
       currentDepth = 0,
-      prefix = ""
+      prefix = "",
+      state = { scanned: 0 }
     ): Promise<string> {
-      if (currentDepth > maxDepth) return "";
+      if (currentDepth > maxDepth || state.scanned > 1000) return "";
 
       let treeString = "";
       try {
@@ -111,6 +123,8 @@ import { NextRequest, NextResponse } from "next/server";
         );
 
         for (let i = 0; i < filteredEntries.length; i++) {
+          state.scanned++;
+          if (state.scanned > 1000) break;
           const entry = filteredEntries[i];
           const isLast = i === filteredEntries.length - 1;
           const entryPrefix = isLast ? "└── " : "├── ";
@@ -123,7 +137,8 @@ import { NextRequest, NextResponse } from "next/server";
               path.join(dirPath, entry.name),
               maxDepth,
               currentDepth + 1,
-              prefix + childPrefix
+              prefix + childPrefix,
+              state
             );
             treeString += subTree;
           }
@@ -217,6 +232,12 @@ import { NextRequest, NextResponse } from "next/server";
       }
 
       try {
+        const contentLength = req.headers.get("content-length");
+        if (contentLength && parseInt(contentLength, 10) > 1024 * 1024) { // 1MB limit
+          logger.warn({ ip, contentLength }, "Rejected oversized payload");
+          return NextResponse.json({ error: "Payload too large. Maximum size is 1MB." }, { status: 413 });
+        }
+
         const body = await req.json();
         const { githubUrl } = generateSchema.parse(body);
 
@@ -224,7 +245,7 @@ import { NextRequest, NextResponse } from "next/server";
         tempDir = path.join(os.tmpdir(), `gitme-repo-${crypto.randomUUID()}`);
 
         try {
-          await execFilePromise("git", ["clone", "--depth", "1", githubUrl, tempDir], { timeout: 60 * 1000 });
+          await execFilePromise("git", ["clone", "--depth", "1", "--single-branch", "--filter=blob:limit=5m", githubUrl, tempDir], { timeout: 60 * 1000 });
 
           let packageJsonContent = null;
           const packageJsonRaw = await readOptionalFile(path.join(tempDir, "package.json"));
@@ -293,7 +314,12 @@ import { NextRequest, NextResponse } from "next/server";
 
           logger.info({ repoName, ip, loadTimeMs: Date.now() - startTime }, "Metadata gathered, invoking AI...");
 
-          const generatedReadmeMarkdown = await generateReadmeContentWithAI(fullMetadata);
+          let generatedReadmeMarkdown = await generateReadmeContentWithAI(fullMetadata);
+          generatedReadmeMarkdown = generatedReadmeMarkdown.trim();
+          const match = generatedReadmeMarkdown.match(/^```(?:markdown|md)?\s*([\s\S]*?)\s*```$/i);
+          if (match) {
+            generatedReadmeMarkdown = match[1].trim();
+          }
 
 
           logger.info({ repoName, durationMs: Date.now() - startTime }, "Successfully generated README.");

@@ -8,15 +8,15 @@ export const Navbar = () => {
 
         <div className="flex font-primary text-[#FAFAFA] text-xl items-center gap-6">
 
-            <div className="cursor-pointer hover:text-primary transition-all duration-200 ease-in hover-underline ">
+            {/* <div className="cursor-pointer hover:text-primary transition-all duration-200 ease-in hover-underline ">
                 Pricing
             </div>
             <div className="cursor-pointer hover:text-primary transition-all duration-200 ease-in hover-underline ">
                 About
-            </div>
-            <div className="bg-primary px-4 py-1 rounded-lg cursor-pointer hover:bg-primary/80  hover-underline transition-all duration-200 ease-in ">
+            </div> */}
+            {/* <div className="bg-primary px-4 py-1 rounded-lg cursor-pointer hover:bg-primary/80  hover-underline transition-all duration-200 ease-in ">
                 Login
-            </div>
+            </div> */}
             
         </div>
         

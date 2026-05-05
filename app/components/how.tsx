@@ -50,7 +50,7 @@ export const HowItWorks = () => {
   const lineProgress = useTransform(scrollYProgress, [0, 0.9], ["0%", "100%"]);
 
   return (
-    <section ref={containerRef} className="relative h-[500vh] bg-[#030303]">
+    <section ref={containerRef} className="relative h-[500vh] pt-32 bg-[#030303]">
       <div className="sticky top-0 h-screen w-full flex flex-col items-center justify-center overflow-hidden">
         
         {/* Timeline Line (Moved to the left of the content area for better hierarchy) */}
