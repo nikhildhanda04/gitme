@@ -328,15 +328,21 @@ import { NextRequest, NextResponse } from "next/server";
           const e = err as Error;
           logger.error({ err: e, githubUrl }, "Repository Clone/Analyze/AI Error");
           let errorMessage = "Failed to process repository or generate README. Ensure it's public and valid.";
-          if (e.message && e.message.includes("not found")) {
-            errorMessage = "Repository not found or URL is incorrect. Please check the GitHub URL.";
-          } else if (e.message && e.message.includes("Authentication failed")) {
-            errorMessage = "Failed to access repository. It might be private or require authentication (public repos only for now).";
-          } else if (e.message && e.message.includes("GEMINI_API_KEY")) {
-            errorMessage = "AI service not configured. Please set GEMINI_API_KEY in your environment variables.";
-          } else if (e.message && e.message.includes("AI API Error")) {
-            // Rethrow specific AI failures nicely
-            errorMessage = e.message;
+          if (e.message) {
+            const msg = e.message.toLowerCase();
+            if (msg.includes("not found")) {
+              errorMessage = "Repository not found or URL is incorrect. Please check the GitHub URL.";
+            } else if (msg.includes("authentication failed")) {
+              errorMessage = "Failed to access repository. It might be private or require authentication (public repos only for now).";
+            } else if (msg.includes("gemini_api_key")) {
+              errorMessage = "AI service is currently misconfigured. Please try again later.";
+            } else if (msg.includes("quota exceeded")) {
+              errorMessage = "The AI service is currently at capacity. Please try again later.";
+            } else if (msg.includes("safety filters")) {
+              errorMessage = "The repository content was flagged by safety filters and could not be processed.";
+            } else if (msg.includes("ai api error")) {
+              errorMessage = "An issue occurred while communicating with the AI service. Please try again later.";
+            }
           }
           return NextResponse.json(
             { error: errorMessage },
